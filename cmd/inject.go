@@ -60,19 +60,24 @@ var injectCmd = &cobra.Command{
 			os.Exit(ExitDebugQueryError)
 		}
 
+		found := false
 		for _, target := range targets {
 			extURL, err := url.Parse(target.URL)
 			if err != nil {
 				continue
 			}
 			if extURL.Scheme == "chrome-extension" && extURL.Host == extID {
-				_, err := overlord.ExecuteJS(target.ID, target.WebSocketDebuggerURL, jsCode)
+				result, err := overlord.ExecuteJS(target.ID, target.WebSocketDebuggerURL, jsCode)
 				if err != nil {
 					os.Exit(ExitExecuteJSError)
 				}
+				fmt.Printf(string(result))
+				found = true
 				break
 			}
 		}
-
+		if !found {
+			fmt.Printf(Warn+"Extension '%s' not found\n", extID)
+		}
 	},
 }

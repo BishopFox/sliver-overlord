@@ -89,8 +89,8 @@ func init() {
 	enumCmd.Flags().IntP(remoteDebuggingPortFlagStr, "r", 1099, "remote debugging port")
 	rootCmd.AddCommand(enumCmd)
 
+	injectCmd.Flags().IntP(remoteDebuggingPortFlagStr, "r", 1099, "remote debugging port")
 	injectCmd.Flags().StringP(extensionIDStrFlag, "e", "", "extension id")
-	injectCmd.Flags().StringP(wsURLFlagStr, "w", "", "websocket url")
 	injectCmd.Flags().StringP(jsCodeURLFlagStr, "j", "", "js code url")
 	injectCmd.Flags().StringP(jsCodeFlagStr, "J", "", "js code")
 	rootCmd.AddCommand(injectCmd)
@@ -135,11 +135,17 @@ func getJSCode(cmd *cobra.Command) string {
 	if jsCode != "" {
 		return jsCode
 	}
+
 	jsURL, err := cmd.Flags().GetString(jsCodeURLFlagStr)
 	if err != nil {
 		fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", jsCodeURLFlagStr, err)
 		os.Exit(ExitBadFlag)
 	}
+	if jsURL == "" && jsCode == "" {
+		fmt.Printf(Warn+"You must specify --%s or --%s\n", jsCodeFlagStr, jsCodeURLFlagStr)
+		os.Exit(ExitNoJSPayload)
+	}
+
 	jsCode, err = fetchJSCode(jsURL)
 	if err != nil {
 		fmt.Printf(Warn+"Failed to fetch JS code from url: %s\n", err)
