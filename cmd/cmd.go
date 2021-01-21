@@ -20,6 +20,8 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -109,4 +111,43 @@ func Execute() {
 		fmt.Println(err)
 		os.Exit(ExitRootCmdError)
 	}
+}
+
+// fetchJSCode - Fetch JS code
+func fetchJSCode(jsURL string) (string, error) {
+	resp, err := http.Get(jsURL)
+	if err != nil {
+		return "", err
+	}
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(data), err
+}
+
+func getJSCode(cmd *cobra.Command) string {
+	jsCode, err := cmd.Flags().GetString(jsCodeFlagStr)
+	if err != nil {
+		fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", jsCodeFlagStr, err)
+		os.Exit(ExitBadFlag)
+	}
+	if jsCode != "" {
+		return jsCode
+	}
+	jsURL, err := cmd.Flags().GetString(jsCodeURLFlagStr)
+	if err != nil {
+		fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", jsCodeURLFlagStr, err)
+		os.Exit(ExitBadFlag)
+	}
+	jsCode, err = fetchJSCode(jsURL)
+	if err != nil {
+		fmt.Printf(Warn+"Failed to fetch JS code from url: %s\n", err)
+		os.Exit(ExitNoJSPayload)
+	}
+	if jsCode == "" {
+		fmt.Println(Warn + "No JS payload, see --help")
+		os.Exit(ExitNoJSPayload)
+	}
+	return jsCode
 }

@@ -29,7 +29,7 @@ import (
 
 var injectCmd = &cobra.Command{
 	Use:   "inject",
-	Short: "",
+	Short: "Inject JS code",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		debuggingPort, err := cmd.Flags().GetInt(remoteDebuggingPortFlagStr)
@@ -41,26 +41,17 @@ var injectCmd = &cobra.Command{
 			fmt.Printf(Warn+"Invalid port number %d\n", debuggingPort)
 			os.Exit(ExitBadFlag)
 		}
-		jsURL, err := cmd.Flags().GetString(jsCodeURLFlagStr)
-		if err != nil {
-			fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", jsCodeURLFlagStr, err)
-			os.Exit(ExitBadFlag)
-		}
 		extID, err := cmd.Flags().GetString(extensionIDStrFlag)
 		if err != nil {
 			fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", extensionIDStrFlag, err)
 			os.Exit(ExitBadFlag)
 		}
+		jsCode := getJSCode(cmd)
 
 		debugURL := url.URL{
 			Scheme: "http",
 			Host:   fmt.Sprintf("localhost:%d", debuggingPort),
 			Path:   "/json",
-		}
-		jsCode, err := fetchJSCode(jsURL)
-		if err != nil {
-			fmt.Printf(Warn+"%s\n", err)
-			os.Exit(ExitNoJSPayload)
 		}
 
 		targets, err := overlord.QueryExtensionDebugTargets(debugURL.String())

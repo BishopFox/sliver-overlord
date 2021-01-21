@@ -8,6 +8,7 @@ example/*.h
 *.h
 
 chrome-hijack
+overlord
 
 # Test binary, built with `go test -c`
 *.test

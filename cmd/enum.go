@@ -30,7 +30,7 @@ import (
 
 var enumCmd = &cobra.Command{
 	Use:   "enum",
-	Short: "",
+	Short: "Enumerate Chrome Extensions",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		debuggingPort, err := cmd.Flags().GetInt(remoteDebuggingPortFlagStr)
