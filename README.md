@@ -11,3 +11,5 @@ Sliver Overlord can be installed via npm:
 npm install -g sliver-overlord
 ```
 
+__NOTE:__ This package requires Node v14.x (LTS)
+
