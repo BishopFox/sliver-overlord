@@ -81,7 +81,7 @@ const (
 	WebRequest = "webRequest"
 
 	// WebRequestBlocking - WebRequestBlocking permission
-	WebRequestBlocking = "WebRequestBlocking"
+	WebRequestBlocking = "webRequestBlocking"
 
 	// FetchManifestJS - Get extension manifest
 	FetchManifestJS = "(() => { return chrome.runtime.getManifest(); })()"

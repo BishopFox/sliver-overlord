@@ -64,6 +64,8 @@ const (
 	jsCodeURLFlagStr   = "js-url"
 	jsCodeFlagStr      = "js-code"
 
+	verboseFlagStr = "verbose"
+
 	// *** Process Exit Codes ***
 
 	// ExitSuccess (0) - Success
@@ -84,6 +86,7 @@ func init() {
 	curseCmd.Flags().IntP(remoteDebuggingPortFlagStr, "r", 1099, "remote debugging port")
 	curseCmd.Flags().StringP(jsCodeURLFlagStr, "j", "", "js code url")
 	curseCmd.Flags().StringP(jsCodeFlagStr, "J", "", "js code")
+	curseCmd.Flags().BoolP(verboseFlagStr, "V", false, "verbose output")
 	rootCmd.AddCommand(curseCmd)
 
 	enumCmd.Flags().IntP(remoteDebuggingPortFlagStr, "r", 1099, "remote debugging port")
@@ -93,6 +96,8 @@ func init() {
 	injectCmd.Flags().StringP(extensionIDStrFlag, "e", "", "extension id")
 	injectCmd.Flags().StringP(jsCodeURLFlagStr, "j", "", "js code url")
 	injectCmd.Flags().StringP(jsCodeFlagStr, "J", "", "js code")
+	injectCmd.Flags().BoolP(verboseFlagStr, "V", false, "verbose output")
+
 	rootCmd.AddCommand(injectCmd)
 }
 

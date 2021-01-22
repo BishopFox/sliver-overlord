@@ -46,6 +46,11 @@ var curseCmd = &cobra.Command{
 			fmt.Printf(Warn+"Invalid port number %d\n", debuggingPort)
 			os.Exit(ExitBadFlag)
 		}
+		verbose, err := cmd.Flags().GetBool(verboseFlagStr)
+		if err != nil {
+			fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", verboseFlagStr, err)
+			os.Exit(ExitBadFlag)
+		}
 		jsCode := getJSCode(cmd)
 
 		debugURL := url.URL{
@@ -55,17 +60,29 @@ var curseCmd = &cobra.Command{
 		}
 
 		// Find with primary permissions
+		if verbose {
+			fmt.Printf(Info+"Looking for extension with %v\n", cursedChromePermissions)
+		}
 		target, err := overlord.FindExtensionWithPermissions(debugURL.String(), cursedChromePermissions)
 		if err != nil {
 			fmt.Printf(Warn+"%s\n", err)
 			os.Exit(ExitDebugQueryError)
 		}
+		if verbose {
+			fmt.Printf(Info+"Found %v\n", target)
+		}
 		if target == nil {
+			if verbose {
+				fmt.Printf(Info+"Looking for extension with %v\n", cursedChromePermissionsAlt)
+			}
 			// Look for alternate permissions
 			target, err = overlord.FindExtensionWithPermissions(debugURL.String(), cursedChromePermissionsAlt)
 			if err != nil {
 				fmt.Printf(Warn+"%s\n", err)
 				os.Exit(ExitDebugQueryError)
+			}
+			if verbose {
+				fmt.Printf(Info+"Found %v\n", target)
 			}
 		}
 		if target == nil {
