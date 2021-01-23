@@ -102,7 +102,7 @@ func init() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "chrome-hijack",
+	Use:   "overlord",
 	Short: "",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
