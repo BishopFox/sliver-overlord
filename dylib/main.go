@@ -49,7 +49,7 @@ func Run() {
 	if err != nil {
 		panic(err)
 	}
-	overlord.ExecuteJS(remote, jsStr, "cjpalhdlnbpafiamejdnhcphjbkeiagm")
+	overlord.ExecuteJS(remote, "cjpalhdlnbpafiamejdnhcphjbkeiagm", jsStr)
 }
 
 func main() {

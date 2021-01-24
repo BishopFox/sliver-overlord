@@ -75,7 +75,7 @@ var injectCmd = &cobra.Command{
 				continue
 			}
 			if extURL.Scheme == "chrome-extension" && extURL.Host == extID {
-				result, err = overlord.ExecuteJS(target.ID, target.WebSocketDebuggerURL, jsCode)
+				result, err = overlord.ExecuteJS(target.WebSocketDebuggerURL, target.ID, jsCode)
 				if err != nil {
 					os.Exit(ExitExecuteJSError)
 				}

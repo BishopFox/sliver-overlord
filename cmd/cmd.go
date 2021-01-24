@@ -64,10 +64,14 @@ const (
 	jsCodeURLFlagStr   = "js-url"
 	jsCodeFlagStr      = "js-code"
 
+	// Screenshot flags
+	targetIDStrFlag = "target-id"
+
 	// Peristent flags
 	outputFormatFlag = "format"
 	verboseFlagStr   = "verbose"
 
+	// Output formats
 	consoleOutput = "console"
 	jsonOutput    = "json"
 
@@ -89,6 +93,8 @@ const (
 	ExitTargetNotFound
 	// ExitMarshalingErr (7) - A marshalling error occurred
 	ExitMarshalingErr
+	// ExitTaskFailure (8) - A chromedp task failed
+	ExitTaskFailure
 )
 
 var (
@@ -96,28 +102,37 @@ var (
 )
 
 func init() {
+
+	// Cursed
 	curseCmd.Flags().IntP(remoteDebuggingPortFlagStr, "r", 1099, "remote debugging port")
 	curseCmd.Flags().StringP(jsCodeURLFlagStr, "j", "", "js code url")
 	curseCmd.Flags().StringP(jsCodeFlagStr, "J", "", "js code")
 	rootCmd.AddCommand(curseCmd)
 
+	// Enum
 	enumCmd.Flags().IntP(remoteDebuggingPortFlagStr, "r", 1099, "remote debugging port")
 	rootCmd.AddCommand(enumCmd)
 
+	// Manifest
 	manifestCmd.Flags().IntP(remoteDebuggingPortFlagStr, "r", 1099, "remote debugging port")
 	manifestCmd.Flags().StringP(extensionIDStrFlag, "e", "", "extension id")
 	rootCmd.AddCommand(manifestCmd)
 
+	// Inject
 	injectCmd.Flags().IntP(remoteDebuggingPortFlagStr, "r", 1099, "remote debugging port")
 	injectCmd.Flags().StringP(extensionIDStrFlag, "e", "", "extension id")
 	injectCmd.Flags().StringP(jsCodeURLFlagStr, "j", "", "js code url")
 	injectCmd.Flags().StringP(jsCodeFlagStr, "J", "", "js code")
-	injectCmd.Flags().BoolP(verboseFlagStr, "V", false, "verbose output")
+	rootCmd.AddCommand(injectCmd)
 
+	// Screenshot
+	screenshotCmd.Flags().IntP(remoteDebuggingPortFlagStr, "r", 1099, "remote debugging port")
+	screenshotCmd.Flags().StringP(targetIDStrFlag, "t", "", "target id")
+	rootCmd.AddCommand(screenshotCmd)
+
+	// Root
 	rootCmd.PersistentFlags().BoolP(verboseFlagStr, "V", false, "verbose output")
 	rootCmd.PersistentFlags().StringP(outputFormatFlag, "f", consoleOutput, fmt.Sprintf("output format: %v", outputFormats))
-
-	rootCmd.AddCommand(injectCmd)
 }
 
 var rootCmd = &cobra.Command{

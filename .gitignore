@@ -22,3 +22,5 @@ overlord
 .vscode
 
 .DS_Store
+
+*.png

@@ -25,11 +25,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"runtime"
 
+	"github.com/chromedp/cdproto/emulation"
+	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 )
@@ -38,6 +42,11 @@ const (
 	darwinUserDataDir  = "Library/Application Support/Google/Chrome"
 	linuxUserDataDir   = ".config/google-chrome"
 	windowsUserDataDir = `Google\Chrome\User Data`
+)
+
+var (
+	// ErrTargetNotFound - Returned when a target cannot be found
+	ErrTargetNotFound = errors.New("Target not found")
 )
 
 // ManifestBackground - An extension manifest file
@@ -91,23 +100,15 @@ var allocCtx context.Context
 
 // GetUserDataDir - Find the user data dir
 func GetUserDataDir() string {
-	var (
-		userDataDir string
-		home        string
-	)
-
+	var userDataDir string
+	home, _ := os.UserHomeDir()
 	switch runtime.GOOS {
 	case "windows":
-		home, _ = os.LookupEnv("LOCALAPPDATA")
-		userDataDir = fmt.Sprintf("%s\\%s", home, windowsUserDataDir)
+		userDataDir = path.Join(home, windowsUserDataDir)
 	case "linux":
-		home, _ = os.LookupEnv("HOME")
-		userDataDir = fmt.Sprintf("%s/%s", home, linuxUserDataDir)
-		break
+		userDataDir = path.Join(home, linuxUserDataDir)
 	case "darwin":
-		home, _ = os.LookupEnv("HOME")
-		userDataDir = fmt.Sprintf("%s/%s", home, darwinUserDataDir)
-		break
+		userDataDir = path.Join(home, darwinUserDataDir)
 	}
 	return userDataDir
 }
@@ -130,17 +131,16 @@ func getContextOptions() []func(*chromedp.ExecAllocator) {
 	return opts
 }
 
-func getChromeContext(remoteURL string) (context.Context, context.CancelFunc, context.CancelFunc) {
+func getChromeContext(webSocketURL string) (context.Context, context.CancelFunc, context.CancelFunc) {
 	var (
 		cancel context.CancelFunc
 	)
-	if remoteURL != "" {
-		allocCtx, cancel = chromedp.NewRemoteAllocator(context.Background(), remoteURL)
+	if webSocketURL != "" {
+		allocCtx, cancel = chromedp.NewRemoteAllocator(context.Background(), webSocketURL)
 	} else {
 		opts := getContextOptions()
 		allocCtx, cancel = chromedp.NewExecAllocator(context.Background(), opts...)
 	}
-
 	taskCtx, taskCancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(log.Printf))
 	return taskCtx, taskCancel, cancel
 }
@@ -179,16 +179,68 @@ func containsAll(haystack []string, needles []string) bool {
 }
 
 // ExecuteJS - injects a JavaScript code into a target
-func ExecuteJS(targetID string, webSocketURL string, jsCode string) ([]byte, error) {
+func ExecuteJS(webSocketURL string, targetID string, jsCode string) ([]byte, error) {
 	taskCtx, _, _ := getChromeContext(webSocketURL)
 	targetInfo := findTargetInfoByID(taskCtx, targetID)
 	if targetInfo == nil {
-		return []byte{}, errors.New("Target not found")
+		return []byte{}, ErrTargetNotFound
 	}
 	extensionContext, _ := chromedp.NewContext(taskCtx, chromedp.WithTargetID(targetInfo.TargetID))
 	var result []byte
 	err := chromedp.Run(extensionContext, chromedp.Evaluate(jsCode, &result))
 	return result, err
+}
+
+// Screenshot - Take a screenshot of a Chrome context
+func Screenshot(webSocketURL string, targetID string, quality int64) ([]byte, error) {
+
+	var result []byte
+	screenshotTask := chromedp.Tasks{
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			// get layout metrics
+			_, _, contentSize, err := page.GetLayoutMetrics().Do(ctx)
+			if err != nil {
+				return err
+			}
+
+			width, height := int64(math.Ceil(contentSize.Width)), int64(math.Ceil(contentSize.Height))
+
+			// force viewport emulation
+			err = emulation.SetDeviceMetricsOverride(width, height, 1, false).WithScreenOrientation(&emulation.ScreenOrientation{
+				Type:  emulation.OrientationTypePortraitPrimary,
+				Angle: 0,
+			}).Do(ctx)
+			if err != nil {
+				return err
+			}
+
+			// capture screenshot
+			result, err = page.CaptureScreenshot().
+				WithQuality(quality).
+				WithClip(&page.Viewport{
+					X:      contentSize.X,
+					Y:      contentSize.Y,
+					Width:  contentSize.Width,
+					Height: contentSize.Height,
+					Scale:  1,
+				}).Do(ctx)
+			if err != nil {
+				return err
+			}
+			return nil
+		}),
+	}
+
+	taskCtx, _, _ := getChromeContext(webSocketURL)
+	targetInfo := findTargetInfoByID(taskCtx, targetID)
+	if targetInfo == nil {
+		return []byte{}, ErrTargetNotFound
+	}
+	ctx, _ := chromedp.NewContext(taskCtx, chromedp.WithTargetID(targetInfo.TargetID))
+	if err := chromedp.Run(ctx, screenshotTask); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // FindExtensionWithPermissions - Find an extension with a permission
@@ -198,7 +250,7 @@ func FindExtensionWithPermissions(debugURL string, permissions []string) (*Chrom
 		return nil, err
 	}
 	for _, target := range targets {
-		result, err := ExecuteJS(target.ID, target.WebSocketDebuggerURL, FetchManifestJS)
+		result, err := ExecuteJS(target.WebSocketDebuggerURL, target.ID, FetchManifestJS)
 		if err != nil {
 			continue
 		}
@@ -222,7 +274,7 @@ func FindExtensionsWithPermissions(debugURL string, permissions []string) ([]*Ch
 	}
 	extensions := []*ChromeDebugTarget{}
 	for _, target := range targets {
-		result, err := ExecuteJS(target.ID, target.WebSocketDebuggerURL, FetchManifestJS)
+		result, err := ExecuteJS(target.WebSocketDebuggerURL, target.ID, FetchManifestJS)
 		if err != nil {
 			continue
 		}

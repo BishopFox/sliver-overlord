@@ -73,10 +73,14 @@ func displayConsoleTargets(targets []overlord.ChromeDebugTarget) {
 		} else {
 			fmt.Printf("----- %s -----\n", target.Title)
 		}
-		fmt.Printf("  ID: %s\n", target.ID)
-		fmt.Printf("Type: %s\n", target.Type)
-		fmt.Printf(" URL: %s\n", target.URL)
-		fmt.Printf("  WS: %s\n", target.WebSocketDebuggerURL)
+		fmt.Printf("   Target ID: %s\n", target.ID)
+		targetURL, err := url.Parse(target.URL)
+		if err == nil && targetURL.Scheme == "chrome-extension" {
+			fmt.Printf("Extension ID: %s\n", targetURL.Host)
+		}
+		fmt.Printf("        Type: %s\n", target.Type)
+		fmt.Printf("         URL: %s\n", target.URL)
+		fmt.Printf("WebSocketURL: %s\n", target.WebSocketDebuggerURL)
 		fmt.Printf("------%s------\n\n", strings.Repeat("-", len(target.Title)))
 	}
 }

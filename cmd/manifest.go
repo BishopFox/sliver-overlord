@@ -71,7 +71,7 @@ var manifestCmd = &cobra.Command{
 				continue
 			}
 			if extURL.Scheme == "chrome-extension" && extURL.Host == extID {
-				result, err := overlord.ExecuteJS(target.ID, target.WebSocketDebuggerURL, overlord.FetchManifestJS)
+				result, err := overlord.ExecuteJS(target.WebSocketDebuggerURL, target.ID, overlord.FetchManifestJS)
 				if err != nil {
 					os.Exit(ExitExecuteJSError)
 				}
