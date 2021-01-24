@@ -19,6 +19,7 @@ package cmd
 */
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -26,6 +27,11 @@ import (
 	"github.com/moloch--/sliver-overlord/pkg/overlord"
 	"github.com/spf13/cobra"
 )
+
+// InjectResult - Result of an injection
+type InjectResult struct {
+	Result string `json:"result"`
+}
 
 var injectCmd = &cobra.Command{
 	Use:   "inject",
@@ -46,6 +52,7 @@ var injectCmd = &cobra.Command{
 			fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", extensionIDStrFlag, err)
 			os.Exit(ExitBadFlag)
 		}
+		format, _ := getOutputFlags(cmd)
 		jsCode := getJSCode(cmd)
 
 		debugURL := url.URL{
@@ -61,17 +68,17 @@ var injectCmd = &cobra.Command{
 		}
 
 		found := false
+		result := []byte{}
 		for _, target := range targets {
 			extURL, err := url.Parse(target.URL)
 			if err != nil {
 				continue
 			}
 			if extURL.Scheme == "chrome-extension" && extURL.Host == extID {
-				result, err := overlord.ExecuteJS(target.ID, target.WebSocketDebuggerURL, jsCode)
+				result, err = overlord.ExecuteJS(target.ID, target.WebSocketDebuggerURL, jsCode)
 				if err != nil {
 					os.Exit(ExitExecuteJSError)
 				}
-				fmt.Printf(string(result))
 				found = true
 				break
 			}
@@ -79,6 +86,17 @@ var injectCmd = &cobra.Command{
 		if !found {
 			fmt.Printf(Warn+"Extension '%s' not found\n", extID)
 			os.Exit(ExitTargetNotFound)
+		}
+		if format == consoleOutput {
+			fmt.Printf(string(result))
+		}
+		if format == jsonOutput {
+			data, err := json.Marshal(&InjectResult{Result: string(result)})
+			if err != nil {
+				fmt.Printf(Warn+"Failed to marshal result %s", err)
+				os.Exit(ExitMarshalingErr)
+			}
+			fmt.Printf(string(data))
 		}
 	},
 }
