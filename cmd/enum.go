@@ -19,6 +19,7 @@ package cmd
 */
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -42,6 +43,7 @@ var enumCmd = &cobra.Command{
 			fmt.Printf(Warn+"Invalid port number %d\n", debuggingPort)
 			os.Exit(ExitBadFlag)
 		}
+		format, _ := getOutputFlags(cmd)
 
 		debugURL := url.URL{
 			Scheme: "http",
@@ -54,19 +56,36 @@ var enumCmd = &cobra.Command{
 			fmt.Printf(Warn+"%s\n", err)
 			os.Exit(ExitDebugQueryError)
 		}
-		for _, target := range targets {
-			if target.Type == "iframe" {
-				titleURL, _ := url.Parse(target.Title)
-				fmt.Printf("----- %s -----\n", titleURL.Hostname())
-			} else {
-				fmt.Printf("----- %s -----\n", target.Title)
-			}
-			fmt.Printf("   ID: %s\n", target.ID)
-			fmt.Printf(" Type: %s\n", target.Type)
-			fmt.Printf("  URL: %s\n", target.URL)
-			fmt.Printf("   WS: %s\n", target.WebSocketDebuggerURL)
-			fmt.Printf("------%s------\n\n", strings.Repeat("-", len(target.Title)))
+		if format == consoleOutput {
+			displayConsoleTargets(targets)
 		}
-
+		if format == jsonOutput {
+			displayJSONTargets(targets)
+		}
 	},
+}
+
+func displayConsoleTargets(targets []overlord.ChromeDebugTarget) {
+	for _, target := range targets {
+		if target.Type == "iframe" {
+			titleURL, _ := url.Parse(target.Title)
+			fmt.Printf("----- %s -----\n", titleURL.Hostname())
+		} else {
+			fmt.Printf("----- %s -----\n", target.Title)
+		}
+		fmt.Printf("  ID: %s\n", target.ID)
+		fmt.Printf("Type: %s\n", target.Type)
+		fmt.Printf(" URL: %s\n", target.URL)
+		fmt.Printf("  WS: %s\n", target.WebSocketDebuggerURL)
+		fmt.Printf("------%s------\n\n", strings.Repeat("-", len(target.Title)))
+	}
+}
+
+func displayJSONTargets(targets []overlord.ChromeDebugTarget) {
+	data, err := json.Marshal(targets)
+	if err != nil {
+		fmt.Printf(Warn+"JSON marshaling failed %s\n", err)
+		os.Exit(ExitMarshalingErr)
+	}
+	fmt.Printf(string(data))
 }

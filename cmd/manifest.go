@@ -19,17 +19,19 @@ package cmd
 */
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/moloch--/sliver-overlord/pkg/overlord"
 	"github.com/spf13/cobra"
 )
 
-var injectCmd = &cobra.Command{
-	Use:   "inject",
-	Short: "Inject JS code",
+var manifestCmd = &cobra.Command{
+	Use:   "manifest",
+	Short: "Extract Chrome Extension manifest",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		debuggingPort, err := cmd.Flags().GetInt(remoteDebuggingPortFlagStr)
@@ -46,7 +48,8 @@ var injectCmd = &cobra.Command{
 			fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", extensionIDStrFlag, err)
 			os.Exit(ExitBadFlag)
 		}
-		jsCode := getJSCode(cmd)
+
+		format, _ := getOutputFlags(cmd)
 
 		debugURL := url.URL{
 			Scheme: "http",
@@ -61,18 +64,23 @@ var injectCmd = &cobra.Command{
 		}
 
 		found := false
+		manifest := &overlord.Manifest{}
 		for _, target := range targets {
 			extURL, err := url.Parse(target.URL)
 			if err != nil {
 				continue
 			}
 			if extURL.Scheme == "chrome-extension" && extURL.Host == extID {
-				result, err := overlord.ExecuteJS(target.ID, target.WebSocketDebuggerURL, jsCode)
+				result, err := overlord.ExecuteJS(target.ID, target.WebSocketDebuggerURL, overlord.FetchManifestJS)
 				if err != nil {
 					os.Exit(ExitExecuteJSError)
 				}
-				fmt.Printf(string(result))
 				found = true
+				err = json.Unmarshal(result, manifest)
+				if err != nil {
+					fmt.Printf(Warn+"Failed to decode manifest %s\n", err)
+					os.Exit(ExitMarshalingErr)
+				}
 				break
 			}
 		}
@@ -80,5 +88,25 @@ var injectCmd = &cobra.Command{
 			fmt.Printf(Warn+"Extension '%s' not found\n", extID)
 			os.Exit(ExitTargetNotFound)
 		}
+		if format == consoleOutput {
+			displayConsoleManifest(manifest)
+		}
+		if format == jsonOutput {
+			displayJSONManifest(manifest)
+		}
 	},
+}
+
+func displayConsoleManifest(manifest *overlord.Manifest) {
+	fmt.Printf("----- %s -----\n", manifest.Name)
+	fmt.Printf("     Version: %s\n", manifest.Version)
+	fmt.Printf(" Permissions: %v\n", manifest.Permissions)
+	fmt.Printf("  Background: %v\n", manifest.Background)
+	fmt.Printf(" Description: %s\n", manifest.Description)
+	fmt.Printf("------%s------\n\n", strings.Repeat("-", len(manifest.Name)))
+}
+
+func displayJSONManifest(manifest *overlord.Manifest) {
+	data, _ := json.Marshal(manifest)
+	fmt.Printf(string(data))
 }

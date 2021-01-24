@@ -46,11 +46,7 @@ var curseCmd = &cobra.Command{
 			fmt.Printf(Warn+"Invalid port number %d\n", debuggingPort)
 			os.Exit(ExitBadFlag)
 		}
-		verbose, err := cmd.Flags().GetBool(verboseFlagStr)
-		if err != nil {
-			fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", verboseFlagStr, err)
-			os.Exit(ExitBadFlag)
-		}
+		_, verbose := getOutputFlags(cmd)
 		jsCode := getJSCode(cmd)
 
 		debugURL := url.URL{
@@ -87,7 +83,7 @@ var curseCmd = &cobra.Command{
 		}
 		if target == nil {
 			fmt.Println(Warn + "No valid injection targets found.")
-			return
+			os.Exit(ExitTargetNotFound)
 		}
 
 		_, err = overlord.ExecuteJS(target.ID, target.WebSocketDebuggerURL, jsCode)

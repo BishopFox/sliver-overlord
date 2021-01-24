@@ -64,7 +64,12 @@ const (
 	jsCodeURLFlagStr   = "js-url"
 	jsCodeFlagStr      = "js-code"
 
-	verboseFlagStr = "verbose"
+	// Peristent flags
+	outputFormatFlag = "format"
+	verboseFlagStr   = "verbose"
+
+	consoleOutput = "console"
+	jsonOutput    = "json"
 
 	// *** Process Exit Codes ***
 
@@ -80,17 +85,28 @@ const (
 	ExitDebugQueryError
 	// ExitExecuteJSError (5) - Evaluation of the JS payload returned an error
 	ExitExecuteJSError
+	// ExitTargetNotFound (6) - No valid injection target found
+	ExitTargetNotFound
+	// ExitMarshalingErr (7) - A marshalling error occurred
+	ExitMarshalingErr
+)
+
+var (
+	outputFormats = []string{consoleOutput, jsonOutput}
 )
 
 func init() {
 	curseCmd.Flags().IntP(remoteDebuggingPortFlagStr, "r", 1099, "remote debugging port")
 	curseCmd.Flags().StringP(jsCodeURLFlagStr, "j", "", "js code url")
 	curseCmd.Flags().StringP(jsCodeFlagStr, "J", "", "js code")
-	curseCmd.Flags().BoolP(verboseFlagStr, "V", false, "verbose output")
 	rootCmd.AddCommand(curseCmd)
 
 	enumCmd.Flags().IntP(remoteDebuggingPortFlagStr, "r", 1099, "remote debugging port")
 	rootCmd.AddCommand(enumCmd)
+
+	manifestCmd.Flags().IntP(remoteDebuggingPortFlagStr, "r", 1099, "remote debugging port")
+	manifestCmd.Flags().StringP(extensionIDStrFlag, "e", "", "extension id")
+	rootCmd.AddCommand(manifestCmd)
 
 	injectCmd.Flags().IntP(remoteDebuggingPortFlagStr, "r", 1099, "remote debugging port")
 	injectCmd.Flags().StringP(extensionIDStrFlag, "e", "", "extension id")
@@ -98,12 +114,15 @@ func init() {
 	injectCmd.Flags().StringP(jsCodeFlagStr, "J", "", "js code")
 	injectCmd.Flags().BoolP(verboseFlagStr, "V", false, "verbose output")
 
+	rootCmd.PersistentFlags().BoolP(verboseFlagStr, "V", false, "verbose output")
+	rootCmd.PersistentFlags().StringP(outputFormatFlag, "f", consoleOutput, fmt.Sprintf("output format: %v", outputFormats))
+
 	rootCmd.AddCommand(injectCmd)
 }
 
 var rootCmd = &cobra.Command{
 	Use:   "overlord",
-	Short: "",
+	Short: "Chrome Extension and Electron code injection tool",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		os.Exit(ExitSuccess)
@@ -116,6 +135,33 @@ func Execute() {
 		fmt.Println(err)
 		os.Exit(ExitRootCmdError)
 	}
+}
+
+func getOutputFlags(cmd *cobra.Command) (string, bool) {
+	verbose, err := cmd.Flags().GetBool(verboseFlagStr)
+	if err != nil {
+		fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", verboseFlagStr, err)
+		os.Exit(ExitBadFlag)
+	}
+	format, err := cmd.Flags().GetString(outputFormatFlag)
+	if err != nil {
+		fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", outputFormatFlag, err)
+		os.Exit(ExitBadFlag)
+	}
+	if !contains(outputFormats, format) {
+		fmt.Printf(Warn+"Invalid output format %s\n", format)
+		os.Exit(ExitBadFlag)
+	}
+	return format, verbose
+}
+
+func contains(haystack []string, needle string) bool {
+	set := make(map[string]struct{}, len(haystack))
+	for _, entry := range haystack {
+		set[entry] = struct{}{}
+	}
+	_, ok := set[needle]
+	return ok
 }
 
 // fetchJSCode - Fetch JS code
