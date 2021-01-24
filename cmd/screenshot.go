@@ -19,6 +19,8 @@ package cmd
 */
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -27,6 +29,11 @@ import (
 	"github.com/moloch--/sliver-overlord/pkg/overlord"
 	"github.com/spf13/cobra"
 )
+
+// Screenshot - Marshal screenshot
+type Screenshot struct {
+	PNG string `json:"png"`
+}
 
 var screenshotCmd = &cobra.Command{
 	Use:   "screenshot",
@@ -47,7 +54,7 @@ var screenshotCmd = &cobra.Command{
 			fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", targetIDStrFlag, err)
 			os.Exit(ExitBadFlag)
 		}
-		// format, _ := getOutputFlags(cmd)
+		format, _ := getOutputFlags(cmd)
 
 		debugURL := url.URL{
 			Scheme: "http",
@@ -65,6 +72,7 @@ var screenshotCmd = &cobra.Command{
 		result := []byte{}
 		for _, target := range targets {
 			if target.ID == targetID {
+				fmt.Printf(Info + "Waiting for repaint ...\n")
 				result, err = overlord.Screenshot(target.WebSocketDebuggerURL, targetID, 100)
 				if err != nil {
 					fmt.Printf(Warn+"Failed to take screenshot %s\n", err)
@@ -78,9 +86,26 @@ var screenshotCmd = &cobra.Command{
 			fmt.Printf(Warn+"Target '%s' not found\n", targetID)
 			os.Exit(ExitTargetNotFound)
 		}
-		if err := ioutil.WriteFile("overlord.png", result, 0o644); err != nil {
-			fmt.Printf(Warn+"File write failed %s\n", err)
-			os.Exit(999)
+
+		if format == consoleOutput {
+			save, err := cmd.Flags().GetString(saveFlagStr)
+			if err != nil {
+				fmt.Printf(Warn+"Failed to parse --%s flag: %s\n", saveFlagStr, err)
+				os.Exit(ExitBadFlag)
+			}
+			if err := ioutil.WriteFile(save, result, 0o644); err != nil {
+				fmt.Printf(Warn+"File write failed %s\n", err)
+				os.Exit(ExitFileIOError)
+			}
+		}
+
+		if format == jsonOutput {
+			data, err := json.Marshal(&Screenshot{PNG: base64.StdEncoding.EncodeToString(result)})
+			if err != nil {
+				fmt.Printf(Warn+"Failed to marshal json %s\n", err)
+				os.Exit(ExitMarshalingErr)
+			}
+			fmt.Printf(string(data))
 		}
 	},
 }

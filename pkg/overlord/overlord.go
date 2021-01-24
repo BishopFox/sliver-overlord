@@ -25,14 +25,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"runtime"
 
-	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
@@ -197,24 +195,10 @@ func Screenshot(webSocketURL string, targetID string, quality int64) ([]byte, er
 	var result []byte
 	screenshotTask := chromedp.Tasks{
 		chromedp.ActionFunc(func(ctx context.Context) error {
-			// get layout metrics
 			_, _, contentSize, err := page.GetLayoutMetrics().Do(ctx)
 			if err != nil {
 				return err
 			}
-
-			width, height := int64(math.Ceil(contentSize.Width)), int64(math.Ceil(contentSize.Height))
-
-			// force viewport emulation
-			err = emulation.SetDeviceMetricsOverride(width, height, 1, false).WithScreenOrientation(&emulation.ScreenOrientation{
-				Type:  emulation.OrientationTypePortraitPrimary,
-				Angle: 0,
-			}).Do(ctx)
-			if err != nil {
-				return err
-			}
-
-			// capture screenshot
 			result, err = page.CaptureScreenshot().
 				WithQuality(quality).
 				WithClip(&page.Viewport{
@@ -231,7 +215,9 @@ func Screenshot(webSocketURL string, targetID string, quality int64) ([]byte, er
 		}),
 	}
 
-	taskCtx, _, _ := getChromeContext(webSocketURL)
+	taskCtx, taskCancel, cancel := getChromeContext(webSocketURL)
+	defer taskCancel()
+	defer cancel()
 	targetInfo := findTargetInfoByID(taskCtx, targetID)
 	if targetInfo == nil {
 		return []byte{}, ErrTargetNotFound

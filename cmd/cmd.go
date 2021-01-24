@@ -66,6 +66,7 @@ const (
 
 	// Screenshot flags
 	targetIDStrFlag = "target-id"
+	saveFlagStr     = "save"
 
 	// Peristent flags
 	outputFormatFlag = "format"
@@ -95,6 +96,8 @@ const (
 	ExitMarshalingErr
 	// ExitTaskFailure (8) - A chromedp task failed
 	ExitTaskFailure
+	// ExitFileIOError (9) - File read/write failed
+	ExitFileIOError
 )
 
 var (
@@ -128,6 +131,7 @@ func init() {
 	// Screenshot
 	screenshotCmd.Flags().IntP(remoteDebuggingPortFlagStr, "r", 1099, "remote debugging port")
 	screenshotCmd.Flags().StringP(targetIDStrFlag, "t", "", "target id")
+	screenshotCmd.Flags().StringP(saveFlagStr, "s", "", fmt.Sprintf("save to file (use with %s output)", consoleOutput))
 	rootCmd.AddCommand(screenshotCmd)
 
 	// Root
