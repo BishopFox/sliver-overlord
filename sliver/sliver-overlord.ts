@@ -31,10 +31,10 @@ const MACOS_OVERLORD_AMD64 = "./bin/macos/overlord-amd64"
 const WINDOWS_OVERLORD_AMD64 = "./bin/windows/overlord-amd64.exe"
 const CHROME_MACOS_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 const CHROME_WINDOWS_PATHS = [
-  "[DRIVE]\\Program Files (x86)\\Google\\Chrome\\Application",
-  "[DRIVE]\\Program Files\\Google\\Chrome\\Application",
-  "[DRIVE]\\Users\\[USERNAME]\\AppData\\Local\\Google\\Chrome\\Application",
-  "[DRIVE]\\Program Files (x86)\\Google\\Application"
+  "[DRIVE]:\\Program Files (x86)\\Google\\Chrome\\Application",
+  "[DRIVE]:\\Program Files\\Google\\Chrome\\Application",
+  "[DRIVE]:\\Users\\[USERNAME]\\AppData\\Local\\Google\\Chrome\\Application",
+  "[DRIVE]:\\Program Files (x86)\\Google\\Application"
 ]
 
 // CLI Parser
@@ -61,13 +61,13 @@ async function getSessionById(client: SliverClient, id: number) {
 
 async function getChromeProcess(interact: InteractiveSession) {
   const ps = await interact.ps()
-  var processNames = [
+  const processNames = [
     'Google Chrome',
     'chrome.exe'
   ]
   for (let index = 0; index < ps.length; ++index) {
     const process = ps[index]
-    for (var processName of processNames) {
+    for (let processName of processNames) {
       if (process.getExecutable() === processName) {
         return process
       }
@@ -87,12 +87,15 @@ async function findUserDataDir(session: Session, interact: InteractiveSession): 
       }
       break
     case 'windows':
-      userDataPath = '[DRIVE]\\Users\\[USERNAME]\\AppData\\Local\\Google\\Chrome\\User Data'
-      userDataPath = userDataPath.replace('[DRIVE]', session.getFilename().substring(0,2))
-      userDataPath = userDataPath.replace('[USERNAME]', session.getUsername().substring(session.getUsername().indexOf('\\') + 1))
-      ls = await interact.ls(userDataPath)
-      if (ls.getExists()) {
-        return userDataPath
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      for (let index = 0; index < characters.length; ++index) {
+        userDataPath = '[DRIVE]:\\Users\\[USERNAME]\\AppData\\Local\\Google\\Chrome\\User Data'
+        userDataPath = userDataPath.replace('[DRIVE]', characters.charAt(index))
+        userDataPath = userDataPath.replace('[USERNAME]', session.getUsername().substring(session.getUsername().indexOf('\\') + 1))
+	ls = await interact.ls(userDataPath)
+        if (ls.getExists()) {
+          return userDataPath
+        }
       }
       break
   }
@@ -104,14 +107,18 @@ async function getChromePath(session: Session, interact: InteractiveSession): Pr
     case 'darwin':
       return CHROME_MACOS_PATH
     case 'windows':
-      for (var path of CHROME_WINDOWS_PATHS) {
-        path = path.replace('[DRIVE]', session.getFilename().substring(0,2))
-	path = path.replace('[USERNAME]', session.getUsername().substring(session.getUsername().indexOf('\\') + 1))
-        let ls = await interact.ls(path)
-        if (ls.getExists()) {
-          for (var file of ls.getFilesList()) {
-            if (file.getName() === 'chrome.exe') {
-              return path + `\\${file.getName()}`
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      for (let currentPath of CHROME_WINDOWS_PATHS) {
+        for (let index = 0; index < characters.length; ++index) {
+          let path = currentPath
+          path = path.replace('[DRIVE]', characters.charAt(index))
+          path = path.replace('[USERNAME]', session.getUsername().substring(session.getUsername().indexOf('\\') + 1))
+          let ls = await interact.ls(path)
+          if (ls.getExists()) {
+            for (let file of ls.getFilesList()) {
+              if (file.getName() === 'chrome.exe') {
+                return path + `\\${file.getName()}`
+              }
             }
           }
         }
