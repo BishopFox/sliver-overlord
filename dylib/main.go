@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/moloch--/sliver-overlord/pkg/overlord"
+	"github.com/bishopfox/sliver-overlord/pkg/overlord"
 )
 
 import "C"

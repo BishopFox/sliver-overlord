@@ -1,4 +1,4 @@
-module github.com/moloch--/sliver-overlord
+module github.com/bishopfox/sliver-overlord
 
 go 1.15
 

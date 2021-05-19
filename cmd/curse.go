@@ -23,7 +23,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/moloch--/sliver-overlord/pkg/overlord"
+	"github.com/bishopfox/sliver-overlord/pkg/overlord"
 	"github.com/spf13/cobra"
 )
 
