@@ -19,7 +19,7 @@ package main
 */
 
 import (
-	"github.com/moloch--/sliver-overlord/cmd"
+	"github.com/bishopfox/sliver-overlord/cmd"
 )
 
 func main() {
