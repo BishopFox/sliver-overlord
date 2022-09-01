@@ -4,3 +4,5 @@
 Sliver Overlord is a post-exploitation [sliver-script](https://github.com/moloch--/sliver-script) that can inject arbitrary JavaScript code into the execution context of a Chrome Extension or Electron-based application. 
 
 It can automatically find existing Chrome Extensions with the required permissions for [CursedChrome](https://github.com/mandatoryprogrammer/CursedChrome) and remotely inject it onto the target system.
+
+⚠️ This functionality is now built into Sliver this repo archived ⚠️
